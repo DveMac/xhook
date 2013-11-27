@@ -3,6 +3,7 @@ BEFORE = 'before'
 AFTER = 'after'
 READY_STATE = 'readyState'
 INVALID_PARAMS_ERROR = "Invalid number or parameters. Please see API documentation."
+UPLOAD_EVENTS = ['onloadstart', 'onprogress', 'onabort', 'onerror', 'onload', 'onloadend'];
 
 #add coffeescripts indexOf method to Array
 Array::indexOf or= (item) ->
@@ -16,7 +17,8 @@ EventEmitter = (ctx) ->
   listeners = (event) ->
     events[event] or []
   emitter =
-    listeners: (event) -> Array::slice.call listeners event
+    listeners: (event) ->
+      Array::slice.call listeners event
     on: (event, callback, i) ->
       events[event] = listeners event
       return if events[event].indexOf(callback) >= 0
@@ -64,11 +66,10 @@ xhook.headers = convertHeaders
 #patch XHR
 XMLHttpRequest = window.XMLHttpRequest
 window.XMLHttpRequest = ->
-
   xhr = new XMLHttpRequest
 
   if pluginEvents.listeners(BEFORE).length is 0 and
-     pluginEvents.listeners(AFTER).length is 0
+  pluginEvents.listeners(AFTER).length is 0
     return xhr
 
   #==========================
@@ -78,6 +79,7 @@ window.XMLHttpRequest = ->
     headers: {}
   response = null
   facadeEventEmitter = EventEmitter()
+  uploadEventEmitter = EventEmitter()
 
   #==========================
   # Private API
@@ -156,7 +158,7 @@ window.XMLHttpRequest = ->
       # on some platforms like android 4.1.2 and safari on windows, it appears
       # that new Event is not allowed
       try new Event(type)
-      catch then {type}
+      catch e then {type}
 
   checkEvent = (e) ->
     clone = {}
@@ -202,9 +204,14 @@ window.XMLHttpRequest = ->
     return
 
   #the rest of the events
-  for event in ['abort','progress']
+  for event in ['abort', 'progress']
     xhr["on#{event}"] = (obj) ->
       facadeEventEmitter.fire event, checkEvent obj
+
+  for key in UPLOAD_EVENTS
+     xhr.upload[key] = do (key) ->
+      (obj) ->
+        uploadEventEmitter.fire key, checkEvent obj
 
   #==========================
   # Facade XHR
@@ -213,7 +220,8 @@ window.XMLHttpRequest = ->
     response: null
     status: 0
 
-  facade.addEventListener = (event, fn) -> facadeEventEmitter.on event, fn
+  facade.addEventListener = (event, fn) ->
+    facadeEventEmitter.on event, fn
   facade.removeEventListener = facadeEventEmitter.off
   facade.dispatchEvent = ->
 
@@ -228,6 +236,10 @@ window.XMLHttpRequest = ->
   facade.send = (body) ->
     request.body = body
     send = ->
+      #attach upload events
+      for own key, val of facade.upload
+        if val and UPLOAD_EVENTS.indexOf(key) > -1
+          do (key, val) -> uploadEventEmitter.on(key, val)
       #prepare response
       response = { headers: {} }
       transiting = true
@@ -249,7 +261,7 @@ window.XMLHttpRequest = ->
           response = resp
           setReadyState 4
           return
-        #continue processing until no hooks left
+          #continue processing until no hooks left
         else
           process()
       hook = hooks.shift()
@@ -278,10 +290,17 @@ window.XMLHttpRequest = ->
     convertHeaders response.headers
   #TODO
   # facade.overrideMimeType = ->
-  #TODO
-  # facade.upload = null
+
+  facade.upload = Object.create({
+    addEventListener: (event, fn) ->
+      uploadEventEmitter.on('on' + event, fn);
+    removeEventListener: (event, fn) ->
+      uploadEventEmitter.off('on' + event, fn);
+    dispatchEvent: () ->
+  })
+  facade.upload[key] = null for key in UPLOAD_EVENTS
 
   return facade
 #publicise
+window.XMLHttpRequest.Original = XMLHttpRequest
 window.xhook = xhook
-

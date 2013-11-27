@@ -2,6 +2,8 @@
   "name": "xhook",
   "version": "1.0.8",
   "author": "Jaime Pillora <dev@jpillora.com>",
+  "url": "https://github.com/jpillora/xhook",
+  "license": "MIT",
   "contributors": [
     {
       "name": "DveMac",

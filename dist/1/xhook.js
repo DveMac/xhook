@@ -1,9 +1,10 @@
-/*! xhook - v1.0.8 - 2013-11-27
-* Jaime Pillora <dev@jpillora.com>; */
+/* xhook - v1.0.8 - https://github.com/jpillora/xhook
+* Jaime Pillora <dev@jpillora.com> -  */
 
 (function() {
-  var AFTER, BEFORE, EventEmitter, INVALID_PARAMS_ERROR, READY_STATE, XMLHttpRequest, convertHeaders, pluginEvents, xhook, _base,
-    __slice = [].slice;
+  var AFTER, BEFORE, EventEmitter, INVALID_PARAMS_ERROR, READY_STATE, UPLOAD_EVENTS, XMLHttpRequest, convertHeaders, pluginEvents, xhook, _base,
+    __slice = [].slice,
+    __hasProp = {}.hasOwnProperty;
 
   BEFORE = 'before';
 
@@ -12,6 +13,8 @@
   READY_STATE = 'readyState';
 
   INVALID_PARAMS_ERROR = "Invalid number or parameters. Please see API documentation.";
+
+  UPLOAD_EVENTS = ['onloadstart', 'onprogress', 'onabort', 'onerror', 'onload', 'onloadend'];
 
   (_base = Array.prototype).indexOf || (_base.indexOf = function(item) {
     var i, x, _i, _len;
@@ -107,7 +110,7 @@
   XMLHttpRequest = window.XMLHttpRequest;
 
   window.XMLHttpRequest = function() {
-    var checkEvent, copyBody, copyHead, currentState, event, extractProps, facade, facadeEventEmitter, makeFakeEvent, readyBody, readyHead, request, response, setReadyState, transiting, xhr, _i, _len, _ref;
+    var checkEvent, copyBody, copyHead, currentState, event, extractProps, facade, facadeEventEmitter, key, makeFakeEvent, readyBody, readyHead, request, response, setReadyState, transiting, uploadEventEmitter, xhr, _i, _j, _k, _len, _len1, _len2, _ref;
     xhr = new XMLHttpRequest;
     if (pluginEvents.listeners(BEFORE).length === 0 && pluginEvents.listeners(AFTER).length === 0) {
       return xhr;
@@ -118,6 +121,7 @@
     };
     response = null;
     facadeEventEmitter = EventEmitter();
+    uploadEventEmitter = EventEmitter();
     readyHead = function() {
       facade.status = response.status;
       facade.statusText = response.statusText;
@@ -194,7 +198,7 @@
       process();
     };
     makeFakeEvent = function(type) {
-      var msieEventObject;
+      var e, msieEventObject;
       if (window.document.createEventObject != null) {
         msieEventObject = window.document.createEventObject();
         msieEventObject.type = type;
@@ -203,6 +207,7 @@
         try {
           return new Event(type);
         } catch (_error) {
+          e = _error;
           return {
             type: type
           };
@@ -255,6 +260,14 @@
         return facadeEventEmitter.fire(event, checkEvent(obj));
       };
     }
+    for (_j = 0, _len1 = UPLOAD_EVENTS.length; _j < _len1; _j++) {
+      key = UPLOAD_EVENTS[_j];
+      xhr.upload[key] = (function(key) {
+        return function(obj) {
+          return uploadEventEmitter.fire(key, checkEvent(obj));
+        };
+      })(key);
+    }
     facade = {
       withCredentials: false,
       response: null,
@@ -275,7 +288,17 @@
       var hooks, process, send;
       request.body = body;
       send = function() {
-        var header, value, _ref1;
+        var header, val, value, _ref1, _ref2;
+        _ref1 = facade.upload;
+        for (key in _ref1) {
+          if (!__hasProp.call(_ref1, key)) continue;
+          val = _ref1[key];
+          if (val && UPLOAD_EVENTS.indexOf(key) > -1) {
+            (function(key, val) {
+              return uploadEventEmitter.on(key, val);
+            })(key, val);
+          }
+        }
         response = {
           headers: {}
         };
@@ -284,9 +307,9 @@
         if (request.timeout) {
           xhr.timeout = request.timeout;
         }
-        _ref1 = request.headers;
-        for (header in _ref1) {
-          value = _ref1[header];
+        _ref2 = request.headers;
+        for (header in _ref2) {
+          value = _ref2[header];
           xhr.setRequestHeader(header, value);
         }
         xhr.send(request.body);
@@ -331,8 +354,23 @@
     facade.getAllResponseHeaders = function() {
       return convertHeaders(response.headers);
     };
+    facade.upload = Object.create({
+      addEventListener: function(event, fn) {
+        return uploadEventEmitter.on('on' + event, fn);
+      },
+      removeEventListener: function(event, fn) {
+        return uploadEventEmitter.off('on' + event, fn);
+      },
+      dispatchEvent: function() {}
+    });
+    for (_k = 0, _len2 = UPLOAD_EVENTS.length; _k < _len2; _k++) {
+      key = UPLOAD_EVENTS[_k];
+      facade.upload[key] = null;
+    }
     return facade;
   };
+
+  window.XMLHttpRequest.Original = XMLHttpRequest;
 
   window.xhook = xhook;
 
