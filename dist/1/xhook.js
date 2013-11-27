@@ -2,7 +2,7 @@
 * Jaime Pillora <dev@jpillora.com> -  */
 
 (function() {
-  var AFTER, BEFORE, EventEmitter, INVALID_PARAMS_ERROR, READY_STATE, UPLOAD_EVENTS, XMLHttpRequest, convertHeaders, pluginEvents, xhook, _base,
+  var AFTER, BEFORE, EventEmitter, INVALID_PARAMS_ERROR, READY_STATE, UPLOAD_EVENTS, UPLOAD_PREFIX, XMLHttpRequest, convertHeaders, pluginEvents, xhook, _base,
     __slice = [].slice,
     __hasProp = {}.hasOwnProperty;
 
@@ -15,6 +15,8 @@
   INVALID_PARAMS_ERROR = "Invalid number or parameters. Please see API documentation.";
 
   UPLOAD_EVENTS = ['onloadstart', 'onprogress', 'onabort', 'onerror', 'onload', 'onloadend'];
+
+  UPLOAD_PREFIX = 'upload.';
 
   (_base = Array.prototype).indexOf || (_base.indexOf = function(item) {
     var i, x, _i, _len;
@@ -110,7 +112,7 @@
   XMLHttpRequest = window.XMLHttpRequest;
 
   window.XMLHttpRequest = function() {
-    var checkEvent, copyBody, copyHead, currentState, event, extractProps, facade, facadeEventEmitter, key, makeFakeEvent, readyBody, readyHead, request, response, setReadyState, transiting, uploadEventEmitter, xhr, _i, _j, _k, _len, _len1, _len2, _ref;
+    var checkEvent, copyBody, copyHead, currentState, event, extractProps, facade, facadeEventEmitter, key, makeFakeEvent, readyBody, readyHead, request, response, setReadyState, transiting, xhr, _i, _j, _k, _len, _len1, _len2, _ref;
     xhr = new XMLHttpRequest;
     if (pluginEvents.listeners(BEFORE).length === 0 && pluginEvents.listeners(AFTER).length === 0) {
       return xhr;
@@ -121,7 +123,6 @@
     };
     response = null;
     facadeEventEmitter = EventEmitter();
-    uploadEventEmitter = EventEmitter();
     readyHead = function() {
       facade.status = response.status;
       facade.statusText = response.statusText;
@@ -264,7 +265,7 @@
       key = UPLOAD_EVENTS[_j];
       xhr.upload[key] = (function(key) {
         return function(obj) {
-          return uploadEventEmitter.fire(key, checkEvent(obj));
+          return facadeEventEmitter.fire(UPLOAD_PREFIX + key, checkEvent(obj));
         };
       })(key);
     }
@@ -295,7 +296,7 @@
           val = _ref1[key];
           if (val && UPLOAD_EVENTS.indexOf(key) > -1) {
             (function(key, val) {
-              return uploadEventEmitter.on(key, val);
+              return facadeEventEmitter.on(UPLOAD_PREFIX + key, val);
             })(key, val);
           }
         }
@@ -356,10 +357,10 @@
     };
     facade.upload = Object.create({
       addEventListener: function(event, fn) {
-        return uploadEventEmitter.on('on' + event, fn);
+        return facadeEventEmitter.on(UPLOAD_PREFIX + 'on' + event, fn);
       },
       removeEventListener: function(event, fn) {
-        return uploadEventEmitter.off('on' + event, fn);
+        return facadeEventEmitter.off(UPLOAD_PREFIX + 'on' + event, fn);
       },
       dispatchEvent: function() {}
     });

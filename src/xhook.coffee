@@ -3,7 +3,8 @@ BEFORE = 'before'
 AFTER = 'after'
 READY_STATE = 'readyState'
 INVALID_PARAMS_ERROR = "Invalid number or parameters. Please see API documentation."
-UPLOAD_EVENTS = ['onloadstart', 'onprogress', 'onabort', 'onerror', 'onload', 'onloadend'];
+UPLOAD_EVENTS = ['onloadstart', 'onprogress', 'onabort', 'onerror', 'onload', 'onloadend']
+UPLOAD_PREFIX = 'upload.'
 
 #add coffeescripts indexOf method to Array
 Array::indexOf or= (item) ->
@@ -79,7 +80,6 @@ window.XMLHttpRequest = ->
     headers: {}
   response = null
   facadeEventEmitter = EventEmitter()
-  uploadEventEmitter = EventEmitter()
 
   #==========================
   # Private API
@@ -211,7 +211,7 @@ window.XMLHttpRequest = ->
   for key in UPLOAD_EVENTS
      xhr.upload[key] = do (key) ->
       (obj) ->
-        uploadEventEmitter.fire key, checkEvent obj
+        facadeEventEmitter.fire UPLOAD_PREFIX + key, checkEvent obj
 
   #==========================
   # Facade XHR
@@ -239,7 +239,7 @@ window.XMLHttpRequest = ->
       #attach upload events
       for own key, val of facade.upload
         if val and UPLOAD_EVENTS.indexOf(key) > -1
-          do (key, val) -> uploadEventEmitter.on(key, val)
+          do (key, val) -> facadeEventEmitter.on(UPLOAD_PREFIX + key, val)
       #prepare response
       response = { headers: {} }
       transiting = true
@@ -293,9 +293,9 @@ window.XMLHttpRequest = ->
 
   facade.upload = Object.create({
     addEventListener: (event, fn) ->
-      uploadEventEmitter.on('on' + event, fn);
+      facadeEventEmitter.on(UPLOAD_PREFIX + 'on' + event, fn);
     removeEventListener: (event, fn) ->
-      uploadEventEmitter.off('on' + event, fn);
+      facadeEventEmitter.off(UPLOAD_PREFIX + 'on' + event, fn);
     dispatchEvent: () ->
   })
   facade.upload[key] = null for key in UPLOAD_EVENTS
