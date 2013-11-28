@@ -1,6 +1,3 @@
-/* xhook - v1.0.8 - https://github.com/jpillora/xhook
-* Jaime Pillora <dev@jpillora.com> -  */
-
 (function() {
   var AFTER, BEFORE, EventEmitter, INVALID_PARAMS_ERROR, READY_STATE, UPLOAD_EVENTS, UPLOAD_PREFIX, XMLHttpRequest, convertHeaders, pluginEvents, xhook, _base,
     __slice = [].slice,

@@ -211,7 +211,8 @@ window.XMLHttpRequest = ->
   for key in UPLOAD_EVENTS
      xhr.upload[key] = do (key) ->
       (obj) ->
-        facadeEventEmitter.fire UPLOAD_PREFIX + key, checkEvent obj
+        # TODO: Probably should be cloning the event obj here, but FF is picky.
+        facadeEventEmitter.fire UPLOAD_PREFIX + key, obj
 
   #==========================
   # Facade XHR
@@ -290,7 +291,6 @@ window.XMLHttpRequest = ->
     convertHeaders response.headers
   #TODO
   # facade.overrideMimeType = ->
-
   facade.upload = Object.create({
     addEventListener: (event, fn) ->
       facadeEventEmitter.on(UPLOAD_PREFIX + 'on' + event, fn);
